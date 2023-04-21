@@ -4,9 +4,14 @@
 
 using namespace grapic;
 
+// Constantes de la fenêtre
+
+const int DIMX = 1280;
+const int DIMY = 720;
+
 // Une constante qui va adapter la vitesse d'exécution
 
-const float step = 0.1f;
+const float step = 1.f;
 
 // Constante pour définir le nombre maximal d'entités
 
@@ -77,6 +82,11 @@ Vec2 rotation(Vec2 vec2, float centreX, float centreY, float angleDegree)
     Vec2 centre = gener_vec2(centreX, centreY);
     Vec2 rotation = gener_vec2_exponentielle(1, angleDegree);
     return (vec2-centre)*rotation+centre;
+}
+
+float distance(Vec2 vec2A, Vec2 vec2B)
+{
+    return std::sqrt(std::pow(vec2B.x-vec2A.x, 2) + std::pow(vec2B.y - vec2B.y, 2));
 }
 
 // Poulpe
@@ -195,19 +205,19 @@ void deplace(Poulpe &poulpe)
 {
     if(isKeyPressed(SDLK_UP))
     {
-        poulpe.vitesse.y = step*7;
+        poulpe.vitesse.y = step*10;
     }
     if(isKeyPressed(SDLK_DOWN))
     {
-        poulpe.vitesse.y = step*-7;
+        poulpe.vitesse.y = step*-10;
     }
     if(isKeyPressed(SDLK_RIGHT))
     {
-        poulpe.vitesse.x = step*7;
+        poulpe.vitesse.x = step*10;
     }
     if(isKeyPressed(SDLK_LEFT))
     {
-        poulpe.vitesse.x = step*-7;
+        poulpe.vitesse.x = step*-10;
     }
 }
 
@@ -216,16 +226,36 @@ void deplace(Poulpe &poulpe)
 void actualise(Poulpe &poulpe)
 {
     poulpe.position = poulpe.position + poulpe.vitesse;
-    poulpe.vitesse = 0.995f*poulpe.vitesse;
+    poulpe.vitesse = 0.95f*poulpe.vitesse;
     float angle = atan2(-poulpe.vitesse.y,-poulpe.vitesse.x)*180/M_PI;
     poulpe.viseur = 100*gener_vec2_exponentielle(1, angle);
 }
 
-Vec2 calculTrajectoireEnemis(Poulpe poulpe, Entite &entite)
+// Fonction pour calculer la trajectoire des ennemis
+
+void calculTrajectoireEnemis(Poulpe poulpe, Entite &entite)
 {
-    float X = std::abs(poulpe.position.x - entite.position.x);
-    float Y = std::abs(poulpe.position.y - entite.position.y);
-    std::cout << entite.position.x << std::endl;
+    float X = poulpe.position.x - entite.position.x;
+    float Y = poulpe.position.y - entite.position.y;
+    Vec2 vitesse = gener_vec2_exponentielle(1, atan2 (Y,X) * 180 / M_PI);
+    if (entite.type == 1)
+    {
+        entite.vitesse = vitesse;
+    }
+
+}
+
+void calculDegatsEnemis(Entite &entite, Entite entites[MAX_ENTITES])
+{
+    for (int i = 0 ; i < MAX_ENTITES; i++)
+    {
+        float taille = 100-entites[i].lifetime*0.267;
+        if (distance(entites[i].position, entite.position) < (100-entites[i].lifetime*0.267+50) && entites[i].type == 0)
+        {
+            // On veut que le crabe meurt en 10 secondes de contact avec une bulle d'encre, on a donc le rapport entre 60 ips et 10 secondes
+            entite.vie = entite.vie - 0.016;
+        }
+    }
 }
 
 // Fonction qui actualise les entités
@@ -234,8 +264,13 @@ void actualiseEntites(Poulpe poulpe, Entite entites[MAX_ENTITES])
 {
     for(int i = 0; i<MAX_ENTITES; i++)
     {
-        if(entites[i].lifetime <= 0)
+        if(entites[i].lifetime <= 0 || entites[i].vie < 0)
             tuer(entites, i);
+        if(entites[i].type == 1 && (entites[i].position.x > DIMX+50 || entites[i].position.y > DIMY+50 || entites[i].position.x < -50 || entites[i].position.y < -50))
+        {
+            tuer(entites, i);
+            apparition(entites, creer_crabe(gener_vec2(500,500), gener_vec2(0,0)));
+        }
         entites[i].position = entites[i].position + entites[i].vitesse;
         if(entites[i].enVie)
         {
@@ -243,10 +278,11 @@ void actualiseEntites(Poulpe poulpe, Entite entites[MAX_ENTITES])
             switch(entites[i].type)
             {
                 case 0:
-                    entites[i].vitesse = 0.995f*entites[i].vitesse;
+                    entites[i].vitesse = 0.95f*entites[i].vitesse;
                     break;
                 case 1:
                     calculTrajectoireEnemis(poulpe, entites[i]);
+                    calculDegatsEnemis(entites[i], entites);
                     break;
             }
         }
@@ -270,8 +306,7 @@ void jet(Poulpe poulpe, Entite entites[MAX_ENTITES])
 {
     if(isKeyPressed(SDLK_SPACE))
     {
-        apparition(entites, creer(poulpe.position, 0.005*poulpe.viseur, 0, 10, 10000));
-        std::cout << "Jet" << std::endl;
+        apparition(entites, creer(poulpe.position, 0.1*poulpe.viseur, 0, 10, 300));
     }
 }
 
@@ -284,8 +319,12 @@ void dessineEntites(Entite entites[MAX_ENTITES])
             switch(entites[i].type)
             {
                 case 0:
-                    color(0,0,0,entites[i].lifetime*0.0255);
-                    circleFill(entites[i].position.x,entites[i].position.y,100-entites[i].lifetime*0.008);
+                    /* On veut qu'une bulle d'encre disparaisse au bout de 5 s.
+                       Elle a une durée de vie de 300 (60 ips * 5 s).
+                       Je fait donc un rapport entre 255 (opacité maximale) et sa durée de vie pour réduire l'opacité = 0.85.*/
+                    color(0,0,0,entites[i].lifetime*0.85);
+                    // On veut que la taille de la bulle d'encre augmente en 5 s jusqu'à une taille de 100 avec une taille initiale à 20.
+                    circleFill(entites[i].position.x,entites[i].position.y,100-entites[i].lifetime*0.267);
                     break;
                 case 1:
                     color(255, 87, 51);
@@ -338,7 +377,7 @@ void menuPause(Image pause);
 
 int main(int , char**)
 {
-	winInit("Pouply",1280,720);
+	winInit("Pouply",DIMX,DIMY);
 	backgroundColor( 18, 156, 235 );
 	bool jouant = false, enPause = false, run;
 	Poulpe poulpe;
@@ -352,10 +391,19 @@ int main(int , char**)
 
 	Image menu = image("data/Poulpy/menu.png");
     Image pause = image("data/Poulpy/pause.png");
+
+    float time1, time2;
+
 	do{
         winClear();
         if(jouant)
         {
+            time1 = elapsedTime();
+            time2 = elapsedTime();
+            while((time2 - time1)*1000 < 17)
+            {
+                time2 = elapsedTime();
+            }
             deplace(poulpe);
             actualise(poulpe);
             jet(poulpe, entites);
