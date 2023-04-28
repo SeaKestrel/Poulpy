@@ -86,7 +86,7 @@ Vec2 rotation(Vec2 vec2, float centreX, float centreY, float angleDegree)
 
 float distance(Vec2 vec2A, Vec2 vec2B)
 {
-    return std::sqrt(std::pow(vec2B.x-vec2A.x, 2) + std::pow(vec2B.y - vec2B.y, 2));
+    return std::sqrt(std::pow(vec2B.x-vec2A.x, 2) + std::pow(vec2B.y - vec2A.y, 2));
 }
 
 // Poulpe
@@ -94,6 +94,7 @@ float distance(Vec2 vec2A, Vec2 vec2B)
 struct Poulpe
 {
     Vec2 position, vitesse, viseur;
+    float vie;
 };
 
 // Entités quelconques
@@ -170,6 +171,8 @@ void apparition(Entite entites[MAX_ENTITES], Entite entite)
     }
 }
 
+// Fonction pour faire apparaitre des crabes aléatoirement autour du poulpe
+
 // Fonction pour initialiser la liste d'entités
 
 void initialisation(Entite entites[MAX_ENTITES])
@@ -199,6 +202,19 @@ Entite creer_crabe(Vec2 position, Vec2 vitesse)
     return entite;
 }
 
+// Fonction pour faire apparaitre une vague de crabe autour de l'espace de jeu
+
+void gener_vague_crabe(Entite entites[MAX_ENTITES], int &nVague)
+{
+    Vec2 position;
+    for (int i = 0; i < nVague+5; i++)
+    {
+        position = gener_vec2(DIMX/2,DIMY/2)+gener_vec2_exponentielle(frand(300,350), frand(0,360));
+        apparition(entites, creer_crabe(position, gener_vec2(0,0)));
+    }
+    std::cout << "generation d'une vague de crabe" << std::endl;
+}
+
 // Fonction pour faire bouger le pouple dans l'espace 2D en fonction des touches appuyées
 
 void deplace(Poulpe &poulpe)
@@ -221,6 +237,33 @@ void deplace(Poulpe &poulpe)
     }
 }
 
+// Fonction qui affiche l'écran de fin
+
+void fin(bool &fin, Image ecranFin)
+{
+    fin = true;
+    image_draw(ecranFin,0,0);
+    if(isKeyPressed(SDLK_SPACE))
+    {
+
+    }
+}
+
+
+// Fonction qui permet de calculer les dégats causés par les crabes au poulpe
+
+void calculDegatPoulpe(Poulpe &poulpe, Entite entites[MAX_ENTITES])
+{
+    for(int i = 0; i< MAX_ENTITES; i++)
+    {
+        // Ici le 80 représente 50+30, respectivement taille de crabe + taille de poulpe
+        if (entites[i].type == 1 && distance(poulpe.position, entites[i].position) < 80)
+        {
+            poulpe.vie = poulpe.vie - 0.016;
+        }
+    }
+}
+
 // Actualise la position du Pouple en fonction de sa vitesse
 
 void actualise(Poulpe &poulpe)
@@ -229,6 +272,11 @@ void actualise(Poulpe &poulpe)
     poulpe.vitesse = 0.95f*poulpe.vitesse;
     float angle = atan2(-poulpe.vitesse.y,-poulpe.vitesse.x)*180/M_PI;
     poulpe.viseur = 100*gener_vec2_exponentielle(1, angle);
+
+    if(poulpe.vie <= 0)
+    {
+        //fin(false);
+    }
 }
 
 // Fonction pour calculer la trajectoire des ennemis
@@ -245,12 +293,14 @@ void calculTrajectoireEnemis(Poulpe poulpe, Entite &entite)
 
 }
 
+// Fonction qui permet de calculer les dégats causé aux crabes par les bulles d'encre
+
 void calculDegatsEnemis(Entite &entite, Entite entites[MAX_ENTITES])
 {
     for (int i = 0 ; i < MAX_ENTITES; i++)
     {
         float taille = 100-entites[i].lifetime*0.267;
-        if (distance(entites[i].position, entite.position) < (100-entites[i].lifetime*0.267+50) && entites[i].type == 0)
+        if (distance(entites[i].position, entite.position) < (100-entites[i].lifetime*0.267+50) && entites[i].type == 0 && entites[i].lifetime > 150)
         {
             // On veut que le crabe meurt en 10 secondes de contact avec une bulle d'encre, on a donc le rapport entre 60 ips et 10 secondes
             entite.vie = entite.vie - 0.016;
@@ -266,11 +316,11 @@ void actualiseEntites(Poulpe poulpe, Entite entites[MAX_ENTITES])
     {
         if(entites[i].lifetime <= 0 || entites[i].vie < 0)
             tuer(entites, i);
-        if(entites[i].type == 1 && (entites[i].position.x > DIMX+50 || entites[i].position.y > DIMY+50 || entites[i].position.x < -50 || entites[i].position.y < -50))
+        /*if(entites[i].type == 1 && (entites[i].position.x > DIMX+50 || entites[i].position.y > DIMY+50 || entites[i].position.x < -50 || entites[i].position.y < -50))
         {
             tuer(entites, i);
             apparition(entites, creer_crabe(gener_vec2(500,500), gener_vec2(0,0)));
-        }
+        }*/
         entites[i].position = entites[i].position + entites[i].vitesse;
         if(entites[i].enVie)
         {
@@ -292,7 +342,7 @@ void actualiseEntites(Poulpe poulpe, Entite entites[MAX_ENTITES])
 
 // Affiche le poulpe à l'écran
 
-void dessine(Poulpe poulpe)
+void dessine(Poulpe poulpe, int nVague)
 {
     color( 31, 114, 165 );
     circleFill(poulpe.position.x+2, poulpe.position.y-2,30);
@@ -300,6 +350,7 @@ void dessine(Poulpe poulpe)
     circleFill(poulpe.position.x, poulpe.position.y, 30);
     color(0,255,0);
     line(poulpe.position.x, poulpe.position.y, poulpe.position.x+poulpe.viseur.x,poulpe.position.y+poulpe.viseur.y);
+    print(DIMX+5,DIMY-20, nVague);
 }
 
 void jet(Poulpe poulpe, Entite entites[MAX_ENTITES])
@@ -329,11 +380,41 @@ void dessineEntites(Entite entites[MAX_ENTITES])
                 case 1:
                     color(255, 87, 51);
                     circleFill(entites[i].position.x,entites[i].position.y,50);
+                    color(0,0,0);
+                    print(entites[i].position.x+5,entites[i].position.y+5,entites[i].vie);
                     break;
                 default:
                     break;
             }
         }
+    }
+}
+
+// Fonction qui renvoie s'il n'y a plus de crabe dans l'espace de jeu
+
+bool crabesPresent(Entite entites[MAX_ENTITES])
+{
+    int n = 0; // Nombre de crabe dans toutes les entités
+    for (int i = 0; i<MAX_ENTITES; i++)
+    {
+        if(entites[i].type == 1)
+        {
+            // S'il y a un crabe on rajoute 1 dans le nombre de crabe
+            n++;
+        }
+    }
+    // S'il n'y a plus de crabe, n = 0
+    return (n > 0) ? true : false;
+}
+
+// Fonction pour gérer le déclenchement d'une nouvelle vague
+
+void vague(Entite entites[MAX_ENTITES], float attenteDeVague, bool &attente, int &nVague)
+{
+    if (elapsedTime()-attenteDeVague > 5)
+    {
+        gener_vague_crabe(entites, nVague);
+        attente = false;
     }
 }
 
@@ -348,7 +429,7 @@ void menuPrincipal(Image menu, bool &jouant)
         {
             if(y>258 && y<376)
             {
-                std::cout << "Started !" << std::endl;
+                std::cout << "Jeu lance0 !" << std::endl;
                 jouant = true;
             } else if(y>124 && y < 232)
             {
@@ -379,43 +460,58 @@ int main(int , char**)
 {
 	winInit("Pouply",DIMX,DIMY);
 	backgroundColor( 18, 156, 235 );
-	bool jouant = false, enPause = false, run;
+	bool jouant = false, enPause = false, fin = false, run, attenteDeVague = true;
 	Poulpe poulpe;
 	poulpe.position = gener_vec2(500,500);
 	poulpe.vitesse = gener_vec2(0,0);
+	poulpe.vie = 50;
+
+	int nVague = 1;
 
 	Entite entites[MAX_ENTITES];
 	initialisation(entites);
 
-	apparition(entites, creer_crabe(gener_vec2(0,0), gener_vec2(0,0)));
+	//apparition(entites, creer_crabe(gener_vec2(0,0), gener_vec2(0,0)));
+	gener_vague_crabe(entites, nVague);
 
 	Image menu = image("data/Poulpy/menu.png");
     Image pause = image("data/Poulpy/pause.png");
+    Image ecranFin = image("data/Poulpy/pause.png");
 
-    float time1, time2;
+    float time1 = elapsedTime(), attenteVague;
 
 	do{
         winClear();
         if(jouant)
         {
-            time1 = elapsedTime();
-            time2 = elapsedTime();
-            while((time2 - time1)*1000 < 17)
+            if((elapsedTime() - time1)*1000 > 17)
             {
-                time2 = elapsedTime();
+                deplace(poulpe);
+                actualise(poulpe);
+                calculDegatPoulpe(poulpe, entites);
+                jet(poulpe, entites);
+                actualiseEntites(poulpe, entites);
+                time1 = elapsedTime();
             }
-            deplace(poulpe);
-            actualise(poulpe);
-            jet(poulpe, entites);
-            actualiseEntites(poulpe, entites);
             dessineEntites(entites);
-            dessine(poulpe);
+            dessine(poulpe, nVague);
             boutonPause(pause, jouant, enPause);
-            //effet_bulle(poulpe);
+            if(!crabesPresent(entites) && !attenteDeVague)
+            {
+                attenteVague = elapsedTime();
+                attenteDeVague = true;
+            }
+            if(!crabesPresent(entites) && attenteDeVague)
+            {
+                vague(entites, attenteVague, attenteDeVague, nVague);
+            }
         } else if (enPause) {
             menuPrincipal(menu, jouant);
         }else if (!jouant && !enPause){
             menuPrincipal(menu, jouant);
+        } else if(!jouant && fin)
+        {
+            //fin(fin, ecranFin);
         }
         run = winDisplay();
 	}while(!run);
