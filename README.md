@@ -13,6 +13,12 @@
 
 > Les vecteurs en deux dimensions, un peu d'interpolation
 
+### Mise à jour du 28 avril 2023
+
+- Affichage de la vie des crabes
+- Génération de vague
+- Amélioration des 60 ips
+
 ### Mise à jour du 21 avril 2023
 
 - Ajout d'une boucle pour rester à 60 itérations par seconde pour unifier sur chaque système la vitesse d'execution
