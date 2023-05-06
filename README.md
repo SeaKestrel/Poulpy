@@ -8,6 +8,7 @@
 
 > Sur le menu principal et de pause, le deuxième bloc marron en partant du haut est celui pour commencer à jouer
 > Utiliser les flèches du clavier pour se déplacer et ESPACE pour lancer un jet d'encre
+> G permet de se soigner pour 3 pièces
 
 ## Ce que ça utilise
 
@@ -24,3 +25,9 @@
 - Ajout d'une boucle pour rester à 60 itérations par seconde pour unifier sur chaque système la vitesse d'execution
 - Ajout du mouvement du crabe (à améliorer)
 - Gestion de la vie des crabes avec les dégats donnés par les bulles d'encre (à améliorer)
+
+### Mise à jour du 6 mai 2023
+
+- Ajout des collisions entre crabes
+- Ajout d'achat de soin
+- Ajout d'un menu qui affiche l'aide
